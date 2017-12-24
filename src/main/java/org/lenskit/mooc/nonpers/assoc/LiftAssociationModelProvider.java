@@ -34,14 +34,14 @@ public class LiftAssociationModelProvider implements Provider<AssociationModel> 
 
         // This set contains all users.
         LongSet allUsers = new LongOpenHashSet();
-        //long totalUsers=allUsers.size();
+
         // This map will map each item ID to the set of users who have rated it.
         Long2ObjectMap<LongSortedSet> itemUsers = new Long2ObjectOpenHashMap<>();
 
         // Open a stream, grouping ratings by item ID
         try (ObjectStream<IdBox<List<Rating>>> ratingStream = dao.query(Rating.class)
-                .groupBy(CommonAttributes.ITEM_ID)
-                .stream()) {
+                                                                 .groupBy(CommonAttributes.ITEM_ID)
+                                                                 .stream()) {
             // Process each item's ratings
             for (IdBox<List<Rating>> item: ratingStream) {
                 // Build a set of users.  We build an array first, then convert to a set.
@@ -57,34 +57,37 @@ public class LiftAssociationModelProvider implements Provider<AssociationModel> 
                 itemUsers.put(item.getId(), LongUtils.frozenSet(users));
             }
         }
-        long totalUsers=allUsers.size();
+
         // Second step: compute all association rules
+
         // We need a map to store them
         Long2ObjectMap<Long2DoubleMap> assocMatrix = new Long2ObjectOpenHashMap<>();
-        long count=0;
+
+
         // then loop over 'x' items
+        long count=0;
         for (Long2ObjectMap.Entry<LongSortedSet> xEntry: itemUsers.long2ObjectEntrySet()) {
             long xId = xEntry.getLongKey();
             LongSortedSet xUsers = xEntry.getValue();
+
             // set up a map to hold the scores for each 'y' item
             Long2DoubleMap itemScores = new Long2DoubleOpenHashMap();
-            for (Long2ObjectMap.Entry<LongSortedSet> yEntry : itemUsers.long2ObjectEntrySet()) {
-                long yId = yEntry.getLongKey();
-                LongSortedSet yUsers = yEntry.getValue();
-                long Y_count = yUsers.size();
-                long X_count = xUsers.size();
+            for (Long2ObjectMap.Entry<LongSortedSet> y : itemUsers.long2ObjectEntrySet()) {
+                long ID = y.getLongKey();
+                LongSortedSet yUsers = y.getValue();
+                long y_count = yUsers.size();
+                long x_count = xUsers.size();
 
-                for (long yUser : yUsers) {
-                    if (xUsers.contains(yUser)) {
-                        ++count;
-                    }
+                for (long y_user : yUsers) {
+                  count=(xUsers.contains(y_user)?count+1:count);
                 }
-                itemScores.put(yId, (((float) count * totalUsers) / ((float) X_count * (float) Y_count)));
+                itemScores.put(ID, (((float) count * allUsers.size()) / ((float) x_count * (float) y_count)));
                 count = 0;
             }
             // save the score map to the main map
             assocMatrix.put(xId, itemScores);
         }
+
         return new AssociationModel(assocMatrix);
     }
 }

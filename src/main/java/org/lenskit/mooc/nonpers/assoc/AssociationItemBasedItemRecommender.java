@@ -11,13 +11,13 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
-import java.util.*;
-
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 
 /**
  * An item-based item scorer that uses association rules.
  */
-
 public class AssociationItemBasedItemRecommender extends AbstractItemBasedItemRecommender {
     private static final Logger logger = LoggerFactory.getLogger(AssociationItemBasedItemRecommender.class);
     private final AssociationModel model;
@@ -56,24 +56,6 @@ public class AssociationItemBasedItemRecommender extends AbstractItemBasedItemRe
         return recommendItems(n, refItem, items);
     }
 
-    public static Comparator<Result> res=new Comparator<Result>() {
-        @Override
-        public int compare(Result rate1, Result rate2) {
-            double first_rating=rate1.getScore();
-            double second_rating=rate2.getScore();
-            if(first_rating>second_rating){
-                return -1;
-            }
-            else if(second_rating>first_rating){
-                return 1;
-            }
-            else{
-                return 0;
-            }
-
-        }
-    };
-
     /**
      * Recommend items with an association rule.
      * @param n The number of recommendations to produce.
@@ -83,16 +65,17 @@ public class AssociationItemBasedItemRecommender extends AbstractItemBasedItemRe
      */
     private ResultList recommendItems(int n, long refItem, LongSet candidates) {
         List<Result> results = new ArrayList<>();
-        Iterator it=candidates.iterator();
-        while(it.hasNext()){
-            long movie_id=(long)it.next();
-            if(model.hasItem(movie_id)){
-                double value=model.getItemAssociation(refItem,movie_id);
-                results.add(Results.create(movie_id,value));
+        Iterator iter=candidates.iterator();
+        while(iter.hasNext()){
+          long M_ID=iter.next();
+            if(model.hasItem(M_ID){
+                double value=model.getItemAssociation(refItem,M_ID);
+                results.add(Results.create(M_ID,value));
             }
             results.sort(res);
 
         }
+
         return Results.newResultList(results.subList(0,n));
     }
 }

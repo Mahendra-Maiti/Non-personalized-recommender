@@ -26,13 +26,16 @@ public class BasicAssociationModelProvider implements Provider<AssociationModel>
 
     @Override
     public AssociationModel get() {
+        // First step: map each item to the set of users who have rated it.
+
+        // This map will map each item ID to the set of users who have rated it.
         Long2ObjectMap<LongSortedSet> itemUsers = new Long2ObjectOpenHashMap<>();
         LongSet allUsers = new LongOpenHashSet();
 
         // Open a stream, grouping ratings by item ID
         try (ObjectStream<IdBox<List<Rating>>> ratingStream = dao.query(Rating.class)
-                .groupBy(CommonAttributes.ITEM_ID)
-                .stream()) {
+                                                                 .groupBy(CommonAttributes.ITEM_ID)
+                                                                 .stream()) {
             // Process each item's ratings
             for (IdBox<List<Rating>> item: ratingStream) {
                 // Build a set of users.  We build an array first, then convert to a set.
@@ -50,10 +53,9 @@ public class BasicAssociationModelProvider implements Provider<AssociationModel>
         }
 
         // Second step: compute all association rules
-
         // We need a map to store them
         Long2ObjectMap<Long2DoubleMap> assocMatrix = new Long2ObjectOpenHashMap<>();
-        long count=0;
+
         // then loop over 'x' items
         for (Long2ObjectMap.Entry<LongSortedSet> xEntry: itemUsers.long2ObjectEntrySet()) {
             long xId = xEntry.getLongKey();
@@ -61,7 +63,7 @@ public class BasicAssociationModelProvider implements Provider<AssociationModel>
 
             // set up a map to hold the scores for each 'y' item for this 'x'
             Long2DoubleMap itemScores = new Long2DoubleOpenHashMap();
-
+            long y_count=0;
             // loop over the 'y' items
             for (Long2ObjectMap.Entry<LongSortedSet> yEntry: itemUsers.long2ObjectEntrySet()) {
                 long yId = yEntry.getLongKey();
@@ -69,17 +71,18 @@ public class BasicAssociationModelProvider implements Provider<AssociationModel>
 
 
                 for(long yUser : yUsers) {
-                    if(xUsers.contains(yUser)){
-                        ++count;
-                    }
+                  y_count=(xUsers.contains(yUser)?y_count+1:y_count);
                 }
-                itemScores.put(yId,((float)count/(float)xUsers.size()));
-                count=0;
-
+                float p_x_y=(float)y_count;
+                float p_x=(float)xUsers.size()
+                itemScores.put(yId,p_x_y/p_x);
+                y_count=0;
 
             }
+            // save the score map to the main map
             assocMatrix.put(xId, itemScores);
         }
+
         return new AssociationModel(assocMatrix);
     }
 }
